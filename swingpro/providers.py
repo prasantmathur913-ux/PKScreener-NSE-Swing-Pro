@@ -33,11 +33,11 @@ def normalize_ohlcv(frame: pd.DataFrame) -> pd.DataFrame:
     missing = REQUIRED - set(df.columns)
     if missing:
         raise ValueError(f"Missing OHLCV columns: {sorted(missing)}")
-    df = df[list(REQUIRED)].copy()
+    df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
     df.index = pd.to_datetime(df.index)
     if getattr(df.index, "tz", None) is not None:
         df.index = df.index.tz_localize(None)
-    for col in REQUIRED:
+    for col in ["Open", "High", "Low", "Close", "Volume"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
     df = df.dropna(subset=["Open", "High", "Low", "Close", "Volume"])
     df = df[~df.index.duplicated(keep="last")].sort_index()
@@ -55,7 +55,8 @@ class JugaadNSEProvider:
         except Exception as exc:
             raise RuntimeError(f"Could not import jugaad_data.nse.stock_df: {exc}") from exc
         end = pd.Timestamp.now().date()
-        start = (pd.Timestamp.now() - pd.Timedelta(days=420)).date()
+        lookback_days = {"1y": 420, "2y": 800, "5y": 1900}.get(period, 420)
+        start = (pd.Timestamp.now() - pd.Timedelta(days=lookback_days)).date()
         frame = stock_df(symbol=symbol.upper(), from_date=start, to_date=end, series="EQ")
         if frame is None or frame.empty:
             raise ValueError("jugaad_data returned no data")
